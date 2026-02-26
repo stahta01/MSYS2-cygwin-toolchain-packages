@@ -1,0 +1,167 @@
+# Contributor: Alexey Pavlov <alexpux@gmail.com>
+# Contributor: Ray Donnelly <mingw.android@gmail.com>
+
+_install_prefix="/cygwin_built"
+
+_realname=cygwin-runtime
+pkgbase=${_realname}
+pkgname=('cygwin-runtime' 'cygwin-runtime-devel')
+pkgver=3.6.6
+pkgrel=1
+pkgdesc="Cygwin POSIX emulation engine"
+arch=('x86_64')
+url="https://www.cygwin.com/"
+license=('GPL')
+msys2_references=(
+  'cygwin: cygwin'
+  "cpe: cpe:/a:cygwin:cygwin"
+)
+makedepends=('cocom'
+             'git'
+             'perl'
+             'mingw-w64-cross-crt'
+             'mingw-w64-cross-gcc'
+             'mingw-w64-cross-zlib'
+             'autotools'
+             'xmlto')
+makedepends+=('cygwin-zstd' 'cygwin-libiconv-devel' 'cygwin-gcc') # 'cygwin-zlib-devel' 'cygwin-gettext-devel')
+options=('!zipman')
+source=('cygwin-runtime'::git://sourceware.org/git/newlib-cygwin.git#tag=cygwin-${pkgver}
+  '0029-install-libs-depend-on-the-toollibs.patch'
+)
+sha256sums=('4acc146baed79e6a4594bebf562125d4d6f66c9d1f53f89a1e47d156799508dc'
+            '4fa17ec74cd5f4e8b629c4a507f04e7f4bb86938bad0f68f78fa6178b4fd1ea5')
+
+# Helper macros to help make tasks easier #
+apply_patch_with_msg() {
+  for _patch in "$@"
+  do
+    msg2 "Applying $_patch"
+    patch -Nbp1 -i "${srcdir}/${_patch}"
+  done
+}
+
+apply_git_am_with_msg() {
+  for _patch in "$@"
+  do
+    msg2 "Applying $_patch"
+    git apply "${srcdir}/${_patch}"
+  done
+}
+
+del_file_exists() {
+  for _fname in "$@"
+  do
+    if [ -f $_fname ]; then
+      rm -rf $_fname
+    fi
+  done
+}
+# =========================================== #
+
+prepare() {
+  cd "${srcdir}"/cygwin-runtime
+  if test true != "$(git config core.symlinks)"
+  then
+    git config core.symlinks true &&
+    /usr/bin/git reset --hard
+  fi
+  #del_file_exists winsup/cygwin/msys2_path_conv.cc \
+    #winsup/cygwin/msys2_path_conv.h \
+    #winsup/utils/mingw/getprocaddr.c \
+    #winsup/cygwin/include/cygwin/exit_process.h \
+    #winsup/cygwin/fhandler_dev_fd.cc
+
+  apply_git_am_with_msg \
+    0029-install-libs-depend-on-the-toollibs.patch
+
+  #cd winsup && ./autogen.sh
+}
+
+build() {
+  [[ -d "${srcdir}"/build-${MSYSTEM_CARCH} ]] && rm -rf "${srcdir}"/build-${MSYSTEM_CARCH}
+  mkdir -p "${srcdir}"/build-${MSYSTEM_CARCH} && cd "${srcdir}"/build-${MSYSTEM_CARCH}
+
+  export PATH="${_install_prefix}/bin:$PATH"
+  export CC=${_install_prefix}/bin/gcc.exe
+  export CXX=${_install_prefix}/bin/g++.exe
+  #export CC=/usr/bin/gcc.exe
+  #export CXX=/usr/bin/g++.exe
+  export AR=/usr/bin/ar.exe
+  export AS=/usr/bin/as.exe
+  export LD=/usr/bin/ld.exe
+
+  echo ""
+  echo "CC [gcc] := ${CC-gcc}"
+  echo "CXX [g++] := ${CXX-g++}"
+  ${CC-gcc} --version | head -1
+  echo ""
+
+  # Gives more verbose compile output when debugging.
+  local -a extra_config
+  if check_option "debug" "y"; then
+    export CCWRAP_VERBOSE=1
+    OPTIM="-O0"
+    extra_config+=(--enable-debugging)
+  else
+    OPTIM="-O2"
+  fi
+
+  CFLAGS="$OPTIM -pipe -ggdb"
+  CXXFLAGS="$OPTIM -pipe -ggdb"
+
+  # otherwise it asks git which appends "-dirty" because of our uncommited patches
+  CFLAGS+=" -DCYGPORT_RELEASE_INFO=${pkgver}"
+
+  (cd "${srcdir}/cygwin-runtime/winsup" && ./autogen.sh)
+
+  "${srcdir}"/cygwin-runtime/configure \
+    --prefix=${_install_prefix} \
+    --build=${CHOST} \
+    --disable-doc \
+    "${extra_config[@]}"
+  LC_ALL=C make
+  LC_ALL=C make -j1 DESTDIR="${srcdir}"/dest install
+
+  rm -rf "${srcdir}"/dest/etc
+
+  # split debug info from cygwin1.dll new-cygwin1.dll libcygwin.a
+  cd "${srcdir}"/dest
+  objcopy --add-gnu-debuglink=/dev/null --only-keep-debug ${_install_prefix:1}/bin/cygwin1.dll ${_install_prefix:1}/bin/cygwin1.dbg
+  objcopy -g --add-gnu-debuglink=${_install_prefix:1}/bin/cygwin1.dbg ${_install_prefix:1}/bin/cygwin1.dll ${_install_prefix:1}/bin/cygwin1.dll.new
+  mv -f ${_install_prefix:1}/bin/cygwin1.dll.new ${_install_prefix:1}/bin/cygwin1.dll
+}
+
+package_cygwin-runtime() {
+  pkgdesc="Posix emulation engine for Windows"
+
+  mkdir -p "${pkgdir}"${_install_prefix}
+  cp -rf "${srcdir}"/dest${_install_prefix}/bin "${pkgdir}"${_install_prefix}/
+  #cp -rf "${srcdir}"/dest${_install_prefix}/libexec "${pkgdir}"${_install_prefix}/
+  rm -f "${pkgdir}"${_install_prefix}/bin/cygwin1.dbg
+  rm -f "${pkgdir}"${_install_prefix}/bin/cyglsa-config
+  rm -f "${pkgdir}"${_install_prefix}/bin/cyglsa.dll
+  rm -f "${pkgdir}"${_install_prefix}/bin/cyglsa64.dll
+  rm -f "${pkgdir}"${_install_prefix}/bin/cygserver-config
+  cp -rf "${srcdir}"/dest${_install_prefix}/share "${pkgdir}"${_install_prefix}/
+}
+
+package_cygwin-runtime-devel() {
+  pkgdesc="Cygwin headers and libraries"
+  depends=("cygwin-runtime=${pkgver}")
+  # strip breaks the split debug info.  msys2/msys2-pacman#52
+  options=('!strip')
+
+  mkdir -p "${pkgdir}"${_install_prefix}/bin
+  cp -f "${srcdir}"/dest${_install_prefix}/bin/cygwin1.dbg "${pkgdir}"${_install_prefix}/bin/
+  cp -rLf "${srcdir}"/dest${_install_prefix}/${CHOST}/include "${pkgdir}"${_install_prefix}/
+  rm -f "${pkgdir}"${_install_prefix}/include/iconv.h
+  rm -f "${pkgdir}"${_install_prefix}/include/unctrl.h
+  # provided by libtirpc
+  rm -fr "${pkgdir}"${_install_prefix}/include/rpc/
+
+  cp -rLf "${srcdir}"/dest${_install_prefix}/${CHOST}/lib "${pkgdir}"${_install_prefix}/
+
+  # compatibility with MSys2 toolchains
+  cp "${srcdir}"/dest${_install_prefix}/${CHOST}/lib/libcygwin.a "${pkgdir}"${_install_prefix}/lib/libmsys-2.0.a
+}
