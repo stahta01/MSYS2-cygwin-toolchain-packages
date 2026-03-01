@@ -1,0 +1,81 @@
+# Contributor: Oleg Titov <oleg.titov@gmail.com>
+
+_install_prefix="/cygwin_built"
+
+_realname=zstd
+pkgbase=cygwin-${_realname}
+pkgname=('cygwin-zstd' 'cygwin-libzstd' 'cygwin-libzstd-devel')
+pkgver=1.5.7
+pkgrel=1
+pkgdesc="Zstandard - Fast real-time compression algorithm"
+arch=('i686' 'x86_64')
+url='https://facebook.github.io/zstd/'
+msys2_repository_url="https://github.com/facebook/zstd"
+msys2_references=(
+  "anitya: 12083"
+  "cpe: cpe:2.3:a:facebook:zstandard"
+)
+license=('BSD')
+makedepends=('cygwin-gcc' 'ninja' 'cmake')
+source=("https://github.com/facebook/${_realname}/releases/download/v${pkgver}/${_realname}-${pkgver}.tar.gz"{,.sig})
+sha256sums=('eb33e51f49a15e023950cd7825ca74a4a2b43db8354825ac24fc1b7ee09e6fa3'
+            'SKIP')
+validpgpkeys=('4EF4AC63455FC9F4545D9B7DEF8FE99528B52FFD')
+noextract=("${_realname}-${pkgver}.tar.gz")
+
+prepare() {
+  tar -xzf "${_realname}-${pkgver}.tar.gz" 2> /dev/null || tar -xzf "${_realname}-${pkgver}.tar.gz"
+
+  cd "${srcdir}/${_realname}-${pkgver}"
+}
+
+build() {
+  cd "${srcdir}/${_realname}-${pkgver}"
+
+  export PATH="${_install_prefix}/bin:$PATH"
+  export CC=${_install_prefix}/bin/gcc
+  export CXX=${_install_prefix}/bin/g++
+
+  cmake \
+    -G"Unix Makefiles" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_C_COMPILER=${_install_prefix}/bin/gcc \
+    -DCMAKE_CXX_COMPILER=${_install_prefix}/bin/g++ \
+    -DCMAKE_SHARED_LIBRARY_PREFIX="cyg" \
+    -DCMAKE_INSTALL_PREFIX=${_install_prefix} \
+    -DZSTD_PROGRAMS_LINK_SHARED=ON \
+    ../${_realname}-${pkgver}/build/cmake
+
+  cmake --build .
+  DESTDIR="${srcdir}/dest" cmake --install .
+}
+
+package_cygwin-zstd() {
+  groups=('libraries')
+  depends=('cygwin-gcc-libs' 'cygwin-libzstd')
+
+  cd "${srcdir}/${_realname}-${pkgver}"
+  mkdir -p ${pkgdir}${_install_prefix}/share
+  cp -rf ${srcdir}/dest${_install_prefix}/bin ${pkgdir}${_install_prefix}/bin/
+  cp -rf ${srcdir}/dest${_install_prefix}/share/man ${pkgdir}${_install_prefix}/share/man/
+  rm -f ${pkgdir}${_install_prefix}/bin/*.dll
+  install -D -m644 "LICENSE" "${pkgdir}${_install_prefix}/share/licenses/${_realname}/LICENSE"
+}
+
+package_cygwin-libzstd() {
+  depends=('cygwin-gcc-libs')
+
+  mkdir -p ${pkgdir}${_install_prefix}/bin
+  cp -rf ${srcdir}/dest${_install_prefix}/bin/*.dll ${pkgdir}${_install_prefix}/bin/
+}
+
+package_cygwin-libzstd-devel() {
+  groups=('development')
+  options=('staticlibs')
+  depends=("cygwin-libzstd=${pkgver}")
+  pkgdesc="zstd headers and libraries"
+  
+  mkdir -p ${pkgdir}${_install_prefix}
+  cp -rf ${srcdir}/dest${_install_prefix}/include ${pkgdir}${_install_prefix}/
+  cp -rf ${srcdir}/dest${_install_prefix}/lib ${pkgdir}${_install_prefix}/
+}
