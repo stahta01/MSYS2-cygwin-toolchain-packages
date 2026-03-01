@@ -1,0 +1,122 @@
+# Contributor: Alexey Pavlov <alexpux@gmail.com>
+# Contributor: Martell Malone <martellmalone@gmail.com>
+
+_install_prefix="/cygwin_built"
+
+_realname=cmake
+pkgname=("${_realname}" "${_realname}-emacs" "${_realname}-vim")
+pkgver=4.2.3
+pkgrel=1
+pkgdesc="A cross-platform open-source make system"
+arch=('i686' 'x86_64')
+url="https://www.cmake.org/"
+msys2_repository_url="https://gitlab.kitware.com/cmake/cmake"
+msys2_references=(
+  "anitya: 306"
+  "cpe: cpe:2.3:a:cmake_project:cmake"
+)
+license=(spdx:BSD-3-Clause)
+makedepends=('cygwin-gcc'
+             'emacs'
+             'autotools'
+             'jsoncpp-devel'
+             'libarchive-devel'
+             'libbz2-devel'
+             'libcurl-devel'
+             'libexpat-devel'
+             'liblzma-devel'
+             'librhash-devel'
+             'libutil-linux-devel'
+             'libuv-devel'
+             'libzstd-devel'
+             'ncurses-devel'
+             'zlib-devel')
+depends=('cygwin-gcc-libs'
+         'jsoncpp'
+         'libcurl'
+         'libexpat'
+         'libarchive'
+         'librhash'
+         'libutil-linux'
+         'libuv'
+         'ncurses'
+         'pkgconf'
+         'zlib'
+         'cppdap')
+options=('staticlibs' 'strip')
+source=(https://www.cmake.org/files/v${pkgver%.*}/${pkgname}-${pkgver}.tar.gz)
+sha256sums=('7efaccde8c5a6b2968bad6ce0fe60e19b6e10701a12fce948c2bf79bac8a11e9')
+
+build() {
+  [[ -d ${srcdir}/build-${CARCH} ]] && rm -rf ${srcdir}/build-${CARCH}
+  mkdir -p ${srcdir}/build-${CARCH}
+
+  export PATH="${_install_prefix}/bin:$PATH"
+  export CC=${_install_prefix}/bin/gcc
+  export CXX=${_install_prefix}/bin/g++
+
+  export CXXFLAGS=
+
+  # CXXFLAGS := -march=nocona -msahf -mtune=generic -O2 -pipe
+  echo "CXXFLAGS := $CXXFLAGS"
+
+  cd ${srcdir}/build-${CARCH}
+  MSYSTEM=MSYS ${srcdir}/${_realname}-${pkgver}/configure \
+    --prefix=${_install_prefix} \
+    --system-libs \
+    --no-qt-gui \
+    --parallel=$(nproc) \
+    --mandir=share/man \
+    --docdir=share/doc/${_realname} \
+    --datadir=share/${_realname} \
+    -- -DCURSES_FORM_LIBRARY=/usr/lib/libformw.dll.a \
+      -DCTEST_TEST_CTEST=ON \
+      -DCMAKE_BUILD_TYPE=Release
+  plain "Start building..."
+  make
+  make DESTDIR=${srcdir}/dest install
+}
+
+#Enable once we can get all tests to pass
+#check() {
+#  cd ${srcdir}/build-${CARCH}
+#  make test
+#}
+
+
+package_cmake() {
+  cd ${srcdir}/dest
+
+  install -d  ${pkgdir}${_install_prefix}/bin/
+  install -d  ${pkgdir}${_install_prefix}/share/aclocal
+  install -d  ${pkgdir}${_install_prefix}/share/${_realname}
+
+  cp -r usr/bin/* ${pkgdir}${_install_prefix}/bin/
+  cp -r usr/share/aclocal/* ${pkgdir}${_install_prefix}/share/aclocal/
+  cp -r usr/share/cmake/* ${pkgdir}${_install_prefix}/share/${_realname}/
+
+  install -Dm644 ${srcdir}/${pkgname}-${pkgver}/LICENSE.rst \
+    ${pkgdir}${_install_prefix}/share/licenses/${pkgname}/LICENSE
+}
+
+package_cmake-vim() {
+  pkgdesc="A cross-platform open-source make system (vim mode)"
+  depends=("cygwin-cmake=${pkgver}" 'vim')
+  cd ${srcdir}/dest
+  install -d ${pkgdir}${_install_prefix}/share
+
+  cp -rf usr/share/vim ${pkgdir}${_install_prefix}/share/
+}
+
+package_cmake-emacs() {
+  pkgdesc="A cross-platform open-source make system (Emacs mode)"
+  depends=(cygwin-cmake=${pkgver} 'emacs')
+  cd ${srcdir}/dest
+
+  install -d ${pkgdir}${_install_prefix}/share
+  cp -rf usr/share/emacs ${pkgdir}${_install_prefix}/share/
+
+  /usr/bin/emacs -batch -f batch-byte-compile \
+    ${pkgdir}${_install_prefix}/share/emacs/site-lisp/cmake-mode.el
+}
+
