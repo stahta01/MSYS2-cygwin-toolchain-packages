@@ -1,6 +1,7 @@
 # Contributor: Alexey Pavlov <alexpux@gmail.com>
 # Contributor: Ray Donnelly <mingw.android@gmail.com>
 
+_build_prefix="/cygwin_built"
 _install_prefix="/cygwin_built"
 
 _realname=cygwin-runtime
@@ -82,9 +83,9 @@ build() {
   [[ -d "${srcdir}"/build-${MSYSTEM_CARCH} ]] && rm -rf "${srcdir}"/build-${MSYSTEM_CARCH}
   mkdir -p "${srcdir}"/build-${MSYSTEM_CARCH} && cd "${srcdir}"/build-${MSYSTEM_CARCH}
 
-  export PATH="${_install_prefix}/bin:$PATH"
-  export CC=${_install_prefix}/bin/gcc.exe
-  export CXX=${_install_prefix}/bin/g++.exe
+  export PATH="${_build_prefix}/bin:$PATH"
+  export CC=${_build_prefix}/bin/gcc.exe
+  export CXX=${_build_prefix}/bin/g++.exe
   #export CC=/usr/bin/gcc.exe
   #export CXX=/usr/bin/g++.exe
   export AR=/usr/bin/ar.exe
