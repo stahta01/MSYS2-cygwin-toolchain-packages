@@ -3,7 +3,7 @@
 _install_prefix="/cygwin_built"
 _opt_build_prefix="/opt${MSYSTEM_PREFIX}"
 
-_use_cygwin_gcc_to_build=no
+#_use_cygwin_gcc_to_build=yes
 
 _realname=binutils
 pkgname=binutils
@@ -22,11 +22,11 @@ license=('GPL')
 depends=('libiconv' 'libintl' 'zlib')
 checkdepends=('dejagnu' 'bc')
 makedepends=('libiconv-devel' 'gettext-devel' 'zlib-devel' 'autotools')
-if [[ "$_use_cygwin_gcc_to_build" == "yes" ]]; then
+#if [[ "$_use_cygwin_gcc_to_build" == "yes" ]]; then
   makedepends+=('cygwin-gcc')
-else
-  makedepends+=('opt-gcc-cygwin')
-fi
+#else
+  #makedepends+=('opt-gcc-cygwin')
+#fi
 options=('staticlibs' '!distcc' '!ccache')
 source=(https://ftp.gnu.org/gnu/binutils/binutils-with-gold-${pkgver}.tar.xz{,.sig}
         0050-bfd-Increase-_bfd_coff_max_nscns-to-65279.patch
@@ -60,21 +60,21 @@ prepare() {
 build() {
   export MSYSTEM=CYGWIN
 
-  if [[ "$_use_cygwin_gcc_to_build" != "yes" ]]; then
-    export PATH=${_opt_build_prefix}/bin:$PATH
-    export CC=${_opt_build_prefix}/bin/gcc
-    export CXX=${_opt_build_prefix}/bin/g++
-    export CFLAGS+=" -D__MSYS__ -I${_opt_build_prefix}/include -I${_opt_build_prefix}/include/w32api -I/usr/include"
-    export CXXFLAGS+=" -D__MSYS__ -I${_opt_build_prefix}/include -I${_opt_build_prefix}/include/w32api -I/usr/include"
-    export LDFLAGS+=" -L${_opt_build_prefix}/lib/gcc/${CYGWIN_CHOST}/${pkgver%%+*} -L${_opt_build_prefix}/lib -L${_opt_build_prefix}/lib/w32api -L/usr/lib"
-  else
+  #if [[ "$_use_cygwin_gcc_to_build" != "yes" ]]; then
+    #export PATH=${_opt_build_prefix}/bin:$PATH
+    #export CC=${_opt_build_prefix}/bin/gcc
+    #export CXX=${_opt_build_prefix}/bin/g++
+    #export CFLAGS+=" -D__MSYS__ -I${_opt_build_prefix}/include -I${_opt_build_prefix}/include/w32api -I/usr/include"
+    #export CXXFLAGS+=" -D__MSYS__ -I${_opt_build_prefix}/include -I${_opt_build_prefix}/include/w32api -I/usr/include"
+    #export LDFLAGS+=" -L${_opt_build_prefix}/lib/gcc/${CYGWIN_CHOST}/${pkgver%%+*} -L${_opt_build_prefix}/lib -L${_opt_build_prefix}/lib/w32api -L/usr/lib"
+  #else
     export PATH=${_install_prefix}/bin:$PATH
     export CC=${_install_prefix}/bin/gcc
     export CXX=${_install_prefix}/bin/g++
-    export CFLAGS+=" -I${_install_prefix}/include -I${_install_prefix}/include/w32api -I/usr/include"
-    export CXXFLAGS+=" -I${_install_prefix}/include -I${_install_prefix}/include/w32api -I/usr/include"
-    export LDFLAGS+=" -lcygwin -L${_install_prefix}/lib/gcc/${CYGWIN_CHOST}/${pkgver%%+*} -L${_install_prefix}/lib -L${_install_prefix}/lib/w32api -L/usr/lib"
-  fi
+    export LD="/usr/bin/ld.exe --sysroot=${_opt_build_prefix}"
+    #export CFLAGS+=" -I${_install_prefix}/include -I${_install_prefix}/include/w32api -I/usr/include"
+    #export CXXFLAGS+=" -I${_install_prefix}/include -I${_install_prefix}/include/w32api -I/usr/include"
+  #fi
 
   cd "${srcdir}"/binutils-${CARCH}
   ../binutils-${pkgver}/configure \
