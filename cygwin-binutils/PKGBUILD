@@ -1,9 +1,9 @@
 # Contributor: Alexey Pavlov <alexpux@gmail.com>
 
 _install_prefix="/cygwin_built"
-_opt_build_prefix="/opt${MSYSTEM_PREFIX}"
+#_opt_build_prefix="/opt${MSYSTEM_PREFIX}"
 
-#_use_cygwin_gcc_to_build=yes
+#_use_cygwin_gcc_to_build=yes #_use_cygwin_gcc_pkg_to_build
 
 _realname=binutils
 pkgname=binutils
@@ -19,9 +19,9 @@ msys2_references=(
   "cpe: cpe:/a:gnu:binutils"
 )
 license=('GPL')
-depends=('libiconv' 'libintl' 'zlib')
+depends=('cygwin-libiconv' 'cygwin-libintl' 'cygwin-zlib')
 checkdepends=('dejagnu' 'bc')
-makedepends=('libiconv-devel' 'gettext-devel' 'zlib-devel' 'autotools')
+makedepends=('cygwin-libiconv-devel' 'cygwin-gettext-devel' 'cygwin-zlib-devel' 'autotools')
 #if [[ "$_use_cygwin_gcc_to_build" == "yes" ]]; then
   makedepends+=('cygwin-gcc')
 #else
@@ -71,7 +71,7 @@ build() {
     export PATH=${_install_prefix}/bin:$PATH
     export CC=${_install_prefix}/bin/gcc
     export CXX=${_install_prefix}/bin/g++
-    export LD="/usr/bin/ld.exe --sysroot=${_opt_build_prefix}"
+    export LD="/usr/bin/ld.exe --sysroot=${_install_prefix}"
     #export CFLAGS+=" -I${_install_prefix}/include -I${_install_prefix}/include/w32api -I/usr/include"
     #export CXXFLAGS+=" -I${_install_prefix}/include -I${_install_prefix}/include/w32api -I/usr/include"
   #fi
