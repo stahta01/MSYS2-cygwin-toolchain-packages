@@ -1,0 +1,75 @@
+# Contributor: Alexey Pavlov <Alexpux@gmail.com>
+
+_install_prefix="/cygwin_built"
+
+_realname='gmp'
+pkgbase=cygwin-${_realname}
+pkgname=('cygwin-gmp' 'cygwin-gmp-devel')
+pkgver=6.3.0
+pkgrel=1
+pkgdesc="A free library for arbitrary precision arithmetic"
+groups=('libraries')
+arch=('i686' 'x86_64')
+url="https://gmplib.org/"
+msys2_references=(
+  "cpe: cpe:/a:gmplib:gmp"
+)
+license=('LGPL3')
+makedepends=('autotools' 'cygwin-gcc')
+source=(https://ftp.gnu.org/gnu/gmp/gmp-${pkgver}.tar.xz{,.sig}
+        "0001-gcc15.patch")
+sha256sums=('a3c2b80201b89e68616f4ad30bc66aee4927c3ce50e33929ca819d5c43538898'
+            'SKIP'
+            '7c4e2eaaf4da1bd69904077a351d585ff022b1d2e742ec25f15886f0063a2cfe')
+validpgpkeys=('5972C48224C1E7E62AA0275D1150EE33C1A000B0'   # Marco Bodrato
+              '343C2FF0FBEE5EC2EDBEF399F3599FF828C67298')   # Niels Möller
+
+prepare() {
+  cd "${srcdir}/${_realname}-${pkgver}"
+
+  # https://gmplib.org/repo/gmp/rev/8e7bb4ae7a18
+  patch -p1 < "${srcdir}/0001-gcc15.patch"
+
+  autoreconf -fi
+}
+
+build() {
+  cd "${srcdir}/${_realname}-${pkgver}"
+
+  export PATH="${_install_prefix}/bin:$PATH"
+  export CC=${_install_prefix}/bin/gcc
+  export CXX=${_install_prefix}/bin/g++
+
+# get rid of those pesky declspec warnings
+  CFLAGS+=" -Wno-attributes" \
+  CXXFLAGS+=" -Wno-attributes" \
+  ./configure --build=${CHOST} \
+    --prefix=${_install_prefix} \
+    --enable-cxx \
+    --enable-fat \
+    --enable-shared --disable-static
+  make
+  make DESTDIR="${srcdir}/dest" install
+}
+
+check() {
+  cd "${srcdir}/${_realname}-${pkgver}"
+  make check
+}
+
+package_cygwin-gmp() {
+  mkdir -p ${pkgdir}${_install_prefix}
+  cp -rf $srcdir/dest${_install_prefix}/bin ${pkgdir}${_install_prefix}/
+  cp -rf $srcdir/dest${_install_prefix}/share ${pkgdir}${_install_prefix}/
+}
+
+package_cygwin-gmp-devel() {
+  groups=('development')
+  options=(staticlibs)
+  depends=("cygwin-gmp=${pkgver}")
+  pkgdesc="GMP headers and libraries"
+
+  mkdir -p ${pkgdir}${_install_prefix}
+  cp -rf $srcdir/dest${_install_prefix}/include ${pkgdir}${_install_prefix}/
+  cp -rf $srcdir/dest${_install_prefix}/lib ${pkgdir}${_install_prefix}/
+}
