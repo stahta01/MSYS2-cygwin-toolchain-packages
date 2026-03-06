@@ -2,13 +2,13 @@
 
 _install_prefix="/cygwin_built"
 
-_use_cygwin_gettext=no
+_use_cygwin_gettext=yes
 
 _realname='libiconv'
 pkgbase=cygwin-${_realname}
 pkgname=('cygwin-libiconv' 'cygwin-libiconv-devel')
 pkgver=1.18
-pkgrel=1
+pkgrel=2
 pkgdesc='Libiconv is a conversion library'
 groups=('libraries')
 arch=('i686' 'x86_64')
